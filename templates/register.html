@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký khuôn mặt{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>📷 Đăng ký khuôn mặt</h1>
+    <p class="subtitle">Chụp ảnh khuôn mặt để tạo tài khoản. Embedding 128 chiều sẽ được lưu vào database.</p>
+  </div>
+
+  <div class="grid-2">
+    <!-- Camera -->
+    <div>
+      <div class="card">
+        <h3>🎥 Webcam</h3>
+        <div class="video-wrapper" style="margin-bottom:1rem;">
+          <video id="video" autoplay muted playsinline style="background:#000;"></video>
+          <div class="video-status" id="cam-status">Đang khởi động camera...</div>
+        </div>
+        <div style="display:flex; gap:.7rem; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="btn-capture">📸 Chụp ảnh</button>
+          <button class="btn btn-ghost" id="btn-recapture" style="display:none;">🔄 Chụp lại</button>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="card" id="preview-card" style="display:none;">
+        <h3>🖼️ Ảnh đã chụp</h3>
+        <img id="preview-img" style="width:100%; border-radius:6px; border:1px solid var(--border);" />
+        <div id="capture-info" style="margin-top:.75rem; font-family:var(--mono); font-size:.8rem; color:var(--text-dim);"></div>
+      </div>
+    </div>
+
+    <!-- Form đăng ký -->
+    <div>
+      <div class="card">
+        <h3>👤 Thông tin tài khoản</h3>
+        <div class="form-group">
+          <label>TÊN NGƯỜI DÙNG (NẠN NHÂN)</label>
+          <input type="text" id="username" placeholder="Ví dụ: alice" autocomplete="off" />
+          <div style="font-size:.78rem; color:var(--text-dim); margin-top:.3rem;">
+            💡 Đặt tên dễ nhớ, đây sẽ là tài khoản mà kẻ tấn công nhắm vào trong demo.
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-register" disabled style="width:100%;">
+          ✅ Đăng ký
+        </button>
+        <div class="alert" id="alert" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- Hướng dẫn -->
+      <div class="card">
+        <h3>📋 Hướng dẫn</h3>
+        <ul style="font-size:.88rem; color:var(--text-dim); line-height:1.9; list-style:none;">
+          <li>① Nhìn thẳng vào camera, đảm bảo ánh sáng đủ</li>
+          <li>② Nhập tên người dùng (ví dụ: <span style="font-family:var(--mono); color:var(--accent);">alice</span>)</li>
+          <li>③ Nhấn <strong style="color:#fff;">Chụp ảnh</strong> → <strong style="color:#fff;">Đăng ký</strong></li>
+          <li>④ Sau khi đăng ký, nhờ người khác (kẻ tấn công) thử đăng nhập bằng ảnh của bạn</li>
+        </ul>
+        <div style="margin-top:1rem; padding:.75rem; background:rgba(255,215,0,.07); border:1px solid rgba(255,215,0,.2); border-radius:6px; font-size:.82rem; color:var(--yellow);">
+          ⚠️ <strong>Gợi ý demo:</strong> Sau khi đăng ký, lấy điện thoại chụp màn hình ảnh của người vừa đăng ký, rồi thử đăng nhập ở trang <strong>Vulnerable Login</strong>.
+        </div>
+      </div>
+
+      <!-- Danh sách người dùng hiện có -->
+      <div class="card">
+        <h3>🗃️ Người dùng hiện có</h3>
+        <div id="user-list-reg" style="font-size:.88rem;"></div>
+        <button class="btn btn-ghost" onclick="loadUsers()" style="margin-top:.75rem; font-size:.8rem;">
+          🔄 Làm mới
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  const video        = document.getElementById('video');
+  const btnCapture   = document.getElementById('btn-capture');
+  const btnRecapture = document.getElementById('btn-recapture');
+  const btnRegister  = document.getElementById('btn-register');
+  const previewCard  = document.getElementById('preview-card');
+  const previewImg   = document.getElementById('preview-img');
+  const captureInfo  = document.getElementById('capture-info');
+  const alertEl      = document.getElementById('alert');
+  const camStatus    = document.getElementById('cam-status');
+  const usernameEl   = document.getElementById('username');
+  const userListEl   = document.getElementById('user-list-reg');
+
+  let capturedImage = null;
+
+  // Khởi động camera
+  startCamera(video).then(() => {
+    camStatus.textContent = '● Camera đang hoạt động';
+    camStatus.style.color = 'var(--green)';
+  }).catch(e => {
+    camStatus.textContent = '✗ Không thể mở camera: ' + e.message;
+    camStatus.style.color = 'var(--red)';
+  });
+
+  // Chụp ảnh
+  btnCapture.addEventListener('click', () => {
+    capturedImage = captureFrame(video);
+    previewImg.src = capturedImage;
+    previewCard.style.display = 'block';
+    captureInfo.textContent = `Kích thước: ${video.videoWidth}×${video.videoHeight}px | ${new Date().toLocaleTimeString('vi')}`;
+    btnCapture.style.display   = 'none';
+    btnRecapture.style.display = '';
+    updateRegisterBtn();
+  });
+
+  btnRecapture.addEventListener('click', () => {
+    capturedImage = null;
+    previewCard.style.display  = 'none';
+    btnCapture.style.display   = '';
+    btnRecapture.style.display = 'none';
+    updateRegisterBtn();
+  });
+
+  usernameEl.addEventListener('input', updateRegisterBtn);
+
+  function updateRegisterBtn() {
+    btnRegister.disabled = !(capturedImage && usernameEl.value.trim());
+  }
+
+  // Đăng ký
+  btnRegister.addEventListener('click', async () => {
+    const username = usernameEl.value.trim();
+    if (!username || !capturedImage) return;
+
+    btnRegister.disabled = true;
+    btnRegister.textContent = '⏳ Đang xử lý...';
+    showAlert('', '');
+
+    const result = await apiPost('/api/register', { username, image: capturedImage });
+
+    showAlert(result.message, result.success ? 'success' : 'danger');
+    btnRegister.textContent = '✅ Đăng ký';
+    btnRegister.disabled = false;
+
+    if (result.success) {
+      usernameEl.value = '';
+      capturedImage = null;
+      previewCard.style.display  = 'none';
+      btnCapture.style.display   = '';
+      btnRecapture.style.display = 'none';
+      loadUsers();
+    }
+  });
+
+  function showAlert(msg, type) {
+    alertEl.textContent = msg;
+    alertEl.className = `alert show alert-${type}`;
+    if (!msg) alertEl.className = 'alert';
+  }
+
+  async function loadUsers() {
+    const r = await fetch('/api/users');
+    const d = await r.json();
+    if (d.users.length === 0) {
+      userListEl.innerHTML = '<span style="color:var(--text-dim);">Chưa có người dùng nào.</span>';
+      return;
+    }
+    userListEl.innerHTML = d.users.map(u => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:.4rem 0; border-bottom:1px solid rgba(30,58,95,.3);">
+        <span style="font-family:var(--mono); color:#fff;">${u}</span>
+        <button onclick="deleteUser('${u}')" class="btn btn-danger" style="padding:.2rem .6rem; font-size:.75rem;">Xóa</button>
+      </div>
+    `).join('');
+  }
+
+  async function deleteUser(username) {
+    if (!confirm(`Xóa người dùng "${username}"?`)) return;
+    const r = await apiPost('/api/users/delete', { username });
+    alert(r.message);
+    loadUsers();
+  }
+
+  loadUsers();
+</script>
+{% endblock %}

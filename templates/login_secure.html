@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}Secure Login — Liveness Detection{% endblock %}
+
+{% block extra_style %}
+<style>
+  .secure-banner {
+    background: rgba(0,255,136,.06);
+    border: 1px solid rgba(0,255,136,.25);
+    border-left: 4px solid var(--green);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex; gap: 1rem; align-items: flex-start;
+  }
+  .blink-counter {
+    font-family: var(--mono); font-size: 4rem; font-weight: bold;
+    color: var(--green); text-align: center;
+    text-shadow: 0 0 20px rgba(0,255,136,.4);
+    transition: all .1s;
+  }
+  .ear-display {
+    font-family: var(--mono); font-size: 1.5rem;
+    text-align: center; margin: .5rem 0;
+    transition: color .1s;
+  }
+  .liveness-indicator {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-dim); transition: background .1s;
+    display: inline-block;
+    box-shadow: 0 0 0 rgba(0,255,136,0);
+  }
+  .liveness-indicator.active { background: var(--green); box-shadow: 0 0 8px rgba(0,255,136,.6); }
+  .liveness-indicator.closed { background: var(--yellow); box-shadow: 0 0 8px rgba(255,215,0,.6); }
+  .phase-indicator {
+    display: flex; gap: .5rem; margin-bottom: 1rem;
+  }
+  .phase-dot {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: var(--bg3); transition: background .3s;
+  }
+  .phase-dot.active { background: var(--accent); }
+  .phase-dot.done   { background: var(--green); }
+
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,.4); }
+    50% { box-shadow: 0 0 0 8px rgba(0,255,136,0); }
+  }
+  .pulse { animation: pulse-green 1.5s infinite; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <div style="display:flex; align-items:center; gap:.75rem; margin-bottom:.5rem;">
+      <h1>🛡️ Secure Login</h1>
+      <span class="badge badge-safe">Có Liveness Detection (EAR)</span>
+    </div>
+    <p class="subtitle">
+      Hệ thống yêu cầu phát hiện ít nhất 1 lần chớp mắt thật trước khi so sánh khuôn mặt.
+      Ảnh in / màn hình điện thoại sẽ bị từ chối vì không có blink thật.
+    </p>
+  </div>
+
+  <!-- Banner -->
+  <div class="secure-banner">
+    <div style="font-size:1.5rem;">🛡️</div>
+    <div>
+      <div style="font-weight:700; color:var(--green); margin-bottom:.3rem;">PHÒNG THỦ: EAR-BASED LIVENESS DETECTION</div>
+      <div style="font-size:.88rem; color:var(--text-dim); line-height:1.6;">
+        Thuật toán Eye Aspect Ratio (EAR) phân tích 6 điểm landmark quanh mỗi mắt theo thời gian thực.
+        Khi EAR giảm dưới ngưỡng 0.25 trong ≥ 2 frame liên tiếp và tăng trở lại → phát hiện 1 blink thật.
+        Ảnh tĩnh không thể tạo ra thay đổi EAR này.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Camera + liveness monitor -->
+    <div>
+      <div class="card">
+        <h3>
+          <span class="liveness-indicator" id="live-dot"></span>
+          &nbsp;Camera + Liveness Monitor
+        </h3>
+
+        <!-- Phase indicators -->
+        <div class="phase-indicator">
+          <div class="phase-dot" id="ph1" title="Bắt đầu"></div>
+          <div class="phase-dot" id="ph2" title="Liveness"></div>
+          <div class="phase-dot" id="ph3" title="Xác thực"></div>
+        </div>
+
+        <div class="video-wrapper" style="margin-bottom:.75rem;">
+          <video id="video" autoplay muted playsinline style="background:#000;"></video>
+          <!-- Annotated overlay -->
+          <img id="annotated-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:none;" />
+          <div class="video-status" id="cam-status">Đang khởi động...</div>
+        </div>
+
+        <!-- EAR real-time display -->
+        <div style="background:var(--bg3); border-radius:8px; padding:.75rem; margin-bottom:.75rem; border:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem;">
+            <span style="font-size:.8rem; color:var(--text-dim);">EAR (Eye Aspect Ratio)</span>
+            <span id="eye-status-label" style="font-size:.8rem; font-family:var(--mono); color:var(--accent);">-</span>
+          </div>
+          <div class="ear-bar-wrap">
+            <div class="ear-bar" id="ear-bar" style="width:0%; background:var(--accent);"></div>
+          </div>
+          <div class="ear-display" id="ear-value" style="color:var(--text-dim);">-- EAR: --.---</div>
+        </div>
+
+        <!-- Blink counter -->
+        <div style="background:var(--bg3); border-radius:8px; padding:.75rem; text-align:center; border:1px solid var(--border);">
+          <div style="font-size:.8rem; color:var(--text-dim); margin-bottom:.25rem;">BLINK COUNT</div>
+          <div class="blink-counter" id="blink-count">0</div>
+          <div style="font-size:.78rem; color:var(--text-dim);">Cần ≥ 1 để vượt qua liveness</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls + kết quả -->
+    <div>
+      <div class="card">
+        <h3>🔐 Đăng nhập</h3>
+        <div class="form-group">
+          <label>CHỌN TÀI KHOẢN</label>
+          <select id="username">
+            <option value="">-- Chọn người dùng --</option>
+            {% for u in users %}
+            <option value="{{ u }}">{{ u }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display:flex; gap:.7rem; flex-wrap:wrap; margin-bottom:1rem;">
+          <button class="btn btn-success" id="btn-start" disabled style="flex:1;">
+            ▶ Bắt đầu Liveness Check
+          </button>
+          <button class="btn btn-primary" id="btn-auth" disabled style="flex:1;">
+            🔐 Xác thực ngay
+          </button>
+        </div>
+        <button class="btn btn-ghost" id="btn-reset" style="width:100%; font-size:.85rem;">
+          🔄 Reset
+        </button>
+
+        <div class="alert" id="alert" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- Code bảo mật -->
+      <div class="card">
+        <h3>✅ Code bảo mật</h3>
+        <pre style="background:var(--bg3); border-radius:6px; padding:1rem; font-family:var(--mono); font-size:.72rem; overflow-x:auto; color:var(--text-dim); border:1px solid var(--border);"><span style="color:#6a9955;"># ✅ CÓ liveness check trước</span>
+<span style="color:var(--accent);">def</span> <span style="color:var(--yellow);">authenticate_secure</span>(frames, user_id):
+    blinks = count_blinks(frames)  <span style="color:#6a9955;"># EAR</span>
+    <span style="color:var(--red);">if</span> blinks < 1:
+        <span style="color:var(--red);">return</span> <span style="color:var(--red);">LIVENESS_FAIL</span>  <span style="color:#6a9955;"># 🛡️ Chặn ảnh giả!</span>
+    frame = frames[-1]
+    emb   = cnn_model.extract(frame)
+    sim   = cosine_similarity(emb, stored)
+    <span style="color:var(--red);">if</span> sim > THRESHOLD:
+        <span style="color:var(--red);">return</span> <span style="color:var(--green);">SUCCESS</span>  <span style="color:#6a9955;"># Người thật!</span></pre>
+      </div>
+
+      <!-- Kết quả -->
+      <div class="card" id="result-card" style="display:none;">
+        <h3>📊 Kết quả xác thực</h3>
+        <div class="similarity-meter" id="sim-meter" style="display:none;">
+          <div class="similarity-value" id="sim-value">-</div>
+          <div class="similarity-label">SIMILARITY SCORE</div>
+        </div>
+        <div class="alert" id="alert-result" style="margin-top:.5rem;"></div>
+        <div id="steps-container" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- Log -->
+      <div class="card">
+        <h3>🖥️ System Log</h3>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  const video         = document.getElementById('video');
+  const btnStart      = document.getElementById('btn-start');
+  const btnAuth       = document.getElementById('btn-auth');
+  const btnReset      = document.getElementById('btn-reset');
+  const usernameEl    = document.getElementById('username');
+  const alertEl       = document.getElementById('alert');
+  const alertResult   = document.getElementById('alert-result');
+  const consoleEl     = document.getElementById('console');
+  const earBar        = document.getElementById('ear-bar');
+  const earValue      = document.getElementById('ear-value');
+  const eyeStatusLbl  = document.getElementById('eye-status-label');
+  const blinkCount    = document.getElementById('blink-count');
+  const liveDot       = document.getElementById('live-dot');
+  const annotated     = document.getElementById('annotated-overlay');
+  const resultCard    = document.getElementById('result-card');
+  const simMeterEl    = document.getElementById('sim-meter');
+  const simValueEl    = document.getElementById('sim-value');
+
+  let sessionId      = null;
+  let livenessLoop   = null;
+  let livenessPass   = false;
+  let lastFrame      = null;
+  let currentBlinks  = 0;
+
+  // ── Khởi động camera ────────────────────────────────────────────────────────
+  startCamera(video).then(() => {
+    document.getElementById('cam-status').textContent = '● Camera sẵn sàng';
+    document.getElementById('cam-status').style.color = 'var(--green)';
+  });
+
+  usernameEl.addEventListener('change', () => {
+    btnStart.disabled = !usernameEl.value;
+  });
+
+  // ── Bắt đầu liveness session ─────────────────────────────────────────────
+  btnStart.addEventListener('click', async () => {
+    if (!usernameEl.value) return;
+
+    // Reset state
+    livenessPass   = false;
+    currentBlinks  = 0;
+    btnAuth.disabled = true;
+
+    const r = await apiPost('/api/liveness/start', {});
+    sessionId = r.session_id;
+
+    log(consoleEl, `[SESSION] Liveness session bắt đầu: ${sessionId.slice(0,8)}...`, 'info');
+    log(consoleEl, '[MONITOR] Đang phân tích EAR theo thời gian thực... Hãy chớp mắt!', 'info');
+
+    setPhase(2);
+    showAlert('👁️ Đang theo dõi. Hãy chớp mắt tự nhiên ít nhất 1 lần!', 'info');
+
+    btnStart.disabled = true;
+
+    // Bật annotated overlay
+    annotated.style.display = 'block';
+
+    // Vòng lặp gửi frame
+    livenessLoop = setInterval(sendFrame, 150);   // ~6 fps
+  });
+
+  // ── Gửi frame ────────────────────────────────────────────────────────────
+  async function sendFrame() {
+    if (!sessionId) return;
+    lastFrame = captureFrame(video);
+
+    const res = await apiPost('/api/liveness/frame', {
+      session_id: sessionId,
+      image: lastFrame,
+    });
+
+    // Cập nhật annotated overlay
+    if (res.annotated_b64) {
+      annotated.src = 'data:image/png;base64,' + res.annotated_b64;
+    }
+
+    // Cập nhật EAR bar
+    if (res.ear !== null && res.ear !== undefined) {
+      const earPct = Math.min(100, (res.ear / 0.4) * 100);
+      earBar.style.width      = earPct + '%';
+      earValue.textContent    = `EAR: ${res.ear.toFixed(3)}`;
+      eyeStatusLbl.textContent = res.eye_status || '';
+
+      if (res.eye_status === 'CLOSED') {
+        earBar.style.background = 'var(--yellow)';
+        earValue.style.color    = 'var(--yellow)';
+        liveDot.className       = 'liveness-indicator closed';
+      } else {
+        earBar.style.background = 'var(--green)';
+        earValue.style.color    = 'var(--green)';
+        liveDot.className       = 'liveness-indicator active';
+      }
+    } else if (!res.face_detected) {
+      earValue.textContent    = 'EAR: Không phát hiện khuôn mặt';
+      earValue.style.color    = 'var(--text-dim)';
+      liveDot.className       = 'liveness-indicator';
+    }
+
+    // Cập nhật blink count
+    if (res.blink_count !== undefined) {
+      currentBlinks           = res.blink_count;
+      blinkCount.textContent  = currentBlinks;
+      if (res.blink_now) {
+        log(consoleEl, `[EAR] 👁️ BLINK phát hiện! Tổng: ${currentBlinks}`, 'ok');
+        blinkCount.style.textShadow = '0 0 30px rgba(0,255,136,.8)';
+        setTimeout(() => blinkCount.style.textShadow = '0 0 20px rgba(0,255,136,.4)', 300);
+      }
+    }
+
+    // Kiểm tra liveness passed
+    if (res.liveness_pass && !livenessPass) {
+      livenessPass    = true;
+      btnAuth.disabled = false;
+      btnAuth.classList.add('pulse');
+      log(consoleEl, `[LIVENESS] ✅ LIVENESS PASSED! ${currentBlinks} blink xác nhận.`, 'ok');
+      showAlert(`✅ Liveness xác nhận! Phát hiện ${currentBlinks} lần chớp mắt. Nhấn "Xác thực ngay" để tiếp tục.`, 'success');
+    }
+  }
+
+  // ── Xác thực ─────────────────────────────────────────────────────────────
+  btnAuth.addEventListener('click', async () => {
+    clearInterval(livenessLoop);
+    livenessLoop = null;
+
+    const username = usernameEl.value;
+    btnAuth.disabled  = true;
+    btnAuth.classList.remove('pulse');
+
+    // Chụp frame cuối để xác thực
+    const finalFrame = captureFrame(video);
+    log(consoleEl, `[AUTH] Gửi yêu cầu xác thực cho "${username}"...`, 'info');
+
+    const result = await apiPost('/api/login/secure', {
+      username,
+      image     : finalFrame,
+      session_id: sessionId,
+    });
+
+    log(consoleEl, result.message, result.success ? 'ok' : 'err');
+
+    resultCard.style.display = 'block';
+
+    if (result.similarity !== undefined) {
+      simMeterEl.style.display  = 'block';
+      simValueEl.textContent    = Math.round(result.similarity * 100) + '%';
+      simValueEl.style.color    = result.success ? 'var(--green)' : 'var(--red)';
+    }
+
+    alertResult.className  = `alert show alert-${result.success ? 'success' : result.liveness_failed ? 'warn' : 'danger'}`;
+    alertResult.textContent = result.message;
+
+    if (result.steps) renderSteps(result.steps, document.getElementById('steps-container'));
+
+    setPhase(3);
+    annotated.style.display = 'none';
+    sessionId = null;
+  });
+
+  // ── Reset ─────────────────────────────────────────────────────────────────
+  btnReset.addEventListener('click', () => {
+    clearInterval(livenessLoop);
+    livenessLoop = null;
+    sessionId    = null;
+    livenessPass = false;
+    currentBlinks = 0;
+
+    blinkCount.textContent   = '0';
+    earValue.textContent     = '-- EAR: --.---';
+    earValue.style.color     = 'var(--text-dim)';
+    earBar.style.width       = '0%';
+    liveDot.className        = 'liveness-indicator';
+    annotated.style.display  = 'none';
+    resultCard.style.display = 'none';
+    btnStart.disabled        = !usernameEl.value;
+    btnAuth.disabled         = true;
+    btnAuth.classList.remove('pulse');
+    alertEl.className        = 'alert';
+    alertResult.className    = 'alert';
+
+    setPhase(1);
+    log(consoleEl, '[SYSTEM] Reset. Sẵn sàng thử lại.', 'info');
+  });
+
+  function setPhase(n) {
+    ['ph1','ph2','ph3'].forEach((id, i) => {
+      const dot = document.getElementById(id);
+      dot.className = 'phase-dot' + (i + 1 < n ? ' done' : i + 1 === n ? ' active' : '');
+    });
+  }
+
+  function showAlert(msg, type) {
+    alertEl.textContent = msg;
+    alertEl.className   = `alert show alert-${type}`;
+  }
+
+  setPhase(1);
+</script>
+{% endblock %}

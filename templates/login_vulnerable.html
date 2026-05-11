@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Vulnerable Login — Tấn công Spoofing{% endblock %}
+
+{% block extra_style %}
+<style>
+  .attack-banner {
+    background: rgba(255,59,92,.08);
+    border: 1px solid rgba(255,59,92,.3);
+    border-left: 4px solid var(--red);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex; gap: 1rem; align-items: flex-start;
+  }
+  .glitch { animation: glitch 3s infinite; }
+  @keyframes glitch {
+    0%, 95% { text-shadow: none; }
+    96% { text-shadow: 2px 0 var(--red), -2px 0 var(--accent); }
+    97% { text-shadow: -2px 0 var(--red), 2px 0 var(--accent); }
+    100% { text-shadow: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <div style="display:flex; align-items:center; gap:.75rem; margin-bottom:.5rem;">
+      <h1 class="glitch">⚠️ Vulnerable Login</h1>
+      <span class="badge badge-vuln">Không có Liveness Detection</span>
+    </div>
+    <p class="subtitle">
+      Hệ thống này CHỈ so sánh embedding khuôn mặt, KHÔNG xác minh đây có phải người thật không.
+      Kẻ tấn công có thể dùng ảnh in hoặc màn hình điện thoại để vượt qua.
+    </p>
+  </div>
+
+  <!-- Banner cảnh báo -->
+  <div class="attack-banner">
+    <div style="font-size:1.5rem;">🎭</div>
+    <div>
+      <div style="font-weight:700; color:var(--red); margin-bottom:.3rem;">KỊCH BẢN TẤN CÔNG SPOOFING</div>
+      <div style="font-size:.88rem; color:var(--text-dim); line-height:1.6;">
+        Người B (kẻ tấn công) lấy ảnh của người A (nạn nhân) từ mạng xã hội → In ảnh hoặc mở trên điện thoại →
+        Đưa ảnh trước webcam → Hệ thống xác thực thành công vì KHÔNG có kiểm tra liveness.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Camera + chọn người dùng -->
+    <div>
+      <div class="card">
+        <h3>🎥 Camera (Kẻ tấn công sử dụng)</h3>
+        <div class="video-wrapper" style="margin-bottom:1rem;">
+          <video id="video" autoplay muted playsinline style="background:#000;"></video>
+          <div class="video-status" id="cam-status">Đang khởi động...</div>
+        </div>
+        <div class="form-group">
+          <label>CHỌN TÀI KHOẢN CẦN TẤN CÔNG</label>
+          <select id="username">
+            <option value="">-- Chọn người dùng --</option>
+            {% for u in users %}
+            <option value="{{ u }}">{{ u }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-danger" id="btn-attack" disabled style="width:100%;">
+          🚀 Thực hiện tấn công
+        </button>
+      </div>
+
+      <!-- Hướng dẫn tấn công -->
+      <div class="card">
+        <h3>📋 Cách thực hiện demo tấn công</h3>
+        <ol style="font-size:.87rem; color:var(--text-dim); line-height:2; padding-left:1.2rem;">
+          <li>Chụp ảnh khuôn mặt nạn nhân (người đã đăng ký)</li>
+          <li>Mở ảnh trên điện thoại hoặc màn hình khác</li>
+          <li>Đưa màn hình điện thoại trước webcam máy tính</li>
+          <li>Chọn tên tài khoản nạn nhân</li>
+          <li>Nhấn "Thực hiện tấn công"</li>
+        </ol>
+        <div style="margin-top:.75rem; padding:.7rem; background:rgba(255,59,92,.07); border-radius:6px; font-size:.82rem; color:var(--red);">
+          ⚠️ Hệ thống lỗ hổng sẽ cấp phép truy cập dù bạn không phải người dùng thật!
+        </div>
+      </div>
+    </div>
+
+    <!-- Kết quả -->
+    <div>
+      <!-- Sơ đồ code lỗ hổng -->
+      <div class="card">
+        <h3>💀 Code bị lỗ hổng</h3>
+        <pre style="background:var(--bg3); border-radius:6px; padding:1rem; font-family:var(--mono); font-size:.75rem; overflow-x:auto; color:var(--text-dim); border:1px solid var(--border);"><span style="color:#6a9955;"># ❌ KHÔNG có liveness check</span>
+<span style="color:var(--accent);">def</span> <span style="color:var(--yellow);">authenticate</span>(frame, user_id):
+    face   = detect_face(frame)
+    emb    = cnn_model.extract(face)
+    stored = db.get_embedding(user_id)
+    sim    = cosine_similarity(emb, stored)
+    <span style="color:#6a9955;">
+    # ⚠️  Không có:
+    # if not liveness_check(frame):
+    #     return FAIL
+</span>
+    <span style="color:var(--red);">if</span> sim > THRESHOLD:
+        <span style="color:var(--red);">return</span> <span style="color:var(--green);">SUCCESS  <span style="color:#6a9955;"># Kẻ tấn công vào được!</span></span></pre>
+      </div>
+
+      <!-- Kết quả tấn công -->
+      <div class="card" id="result-card" style="display:none;">
+        <h3>📊 Kết quả</h3>
+        <div class="similarity-meter" id="sim-meter">
+          <div class="similarity-value" id="sim-value" style="color:var(--accent);">-</div>
+          <div class="similarity-label">SIMILARITY SCORE</div>
+          <div style="margin-top:.5rem; font-family:var(--mono); font-size:.78rem; color:var(--text-dim);" id="sim-detail"></div>
+        </div>
+        <div class="alert" id="alert" style="margin-top:1rem;"></div>
+        <div id="steps-container" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- Log console -->
+      <div class="card">
+        <h3>🖥️ Attack Log</h3>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  const video     = document.getElementById('video');
+  const btnAttack = document.getElementById('btn-attack');
+  const username  = document.getElementById('username');
+  const alertEl   = document.getElementById('alert');
+  const consoleEl = document.getElementById('console');
+  const simMeter  = document.getElementById('sim-meter');
+  const simValue  = document.getElementById('sim-value');
+  const simDetail = document.getElementById('sim-detail');
+  const resultCard= document.getElementById('result-card');
+
+  // Khởi động camera
+  startCamera(video).then(() => {
+    document.getElementById('cam-status').textContent = '● Camera sẵn sàng';
+    document.getElementById('cam-status').style.color = 'var(--green)';
+  });
+
+  username.addEventListener('change', () => {
+    btnAttack.disabled = !username.value;
+  });
+
+  btnAttack.addEventListener('click', async () => {
+    const user = username.value;
+    if (!user) return;
+
+    const frame = captureFrame(video);
+    btnAttack.disabled   = true;
+    btnAttack.textContent = '⏳ Đang tấn công...';
+
+    log(consoleEl, `[ATTACKER] Bắt đầu tấn công tài khoản: "${user}"`, 'warn');
+    log(consoleEl, '[STEP 1] Gửi frame ảnh đến server...', 'info');
+
+    const result = await apiPost('/api/login/vulnerable', { username: user, image: frame });
+
+    log(consoleEl, `[STEP 2] Phát hiện khuôn mặt: ${result.steps?.[1]?.status === 'ok' ? 'OK' : 'FAIL'}`, 'info');
+    log(consoleEl, `[STEP 3] Trích xuất embedding: OK`, 'info');
+    log(consoleEl, `[STEP 4] Liveness check: ⚠️ BỊ BỎ QUA`, 'warn');
+    log(consoleEl, `[STEP 5] Similarity = ${result.similarity} | Match = ${result.success}`, result.success ? 'ok' : 'err');
+    log(consoleEl, result.message, result.success ? 'ok' : 'err');
+
+    // Hiện kết quả
+    resultCard.style.display = 'block';
+    const pct = Math.round(result.similarity * 100);
+    simValue.textContent = pct + '%';
+    simValue.style.color = result.success ? 'var(--red)' : 'var(--green)';
+    simDetail.textContent = `Distance = ${result.distance} | Threshold = ${result.threshold}`;
+
+    alertEl.className = `alert show alert-${result.success ? 'danger' : 'info'}`;
+    alertEl.textContent = result.message;
+
+    if (result.steps) renderSteps(result.steps, document.getElementById('steps-container'));
+
+    btnAttack.disabled = false;
+    btnAttack.textContent = '🚀 Thực hiện tấn công';
+  });
+</script>
+{% endblock %}

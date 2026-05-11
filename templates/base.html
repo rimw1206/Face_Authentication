@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Face Auth Demo{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── CSS Variables ─────────────────────────────────── */
+    :root {
+      --bg:        #070b14;
+      --bg2:       #0d1526;
+      --bg3:       #111d35;
+      --border:    #1e3a5f;
+      --accent:    #00d4ff;
+      --accent2:   #0099cc;
+      --green:     #00ff88;
+      --red:       #ff3b5c;
+      --yellow:    #ffd700;
+      --text:      #c8daf0;
+      --text-dim:  #5a7a9a;
+      --mono:      'Share Tech Mono', monospace;
+      --sans:      'Rajdhani', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,212,255,.07) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(0,153,204,.03) 0%, transparent 40%);
+    }
+
+    /* ─── Nav ────────────────────────────────────────────── */
+    nav {
+      background: rgba(7,11,20,.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 100;
+      padding: 0 2rem;
+      display: flex; align-items: center; gap: 2rem;
+      height: 56px;
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-size: 1rem;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .nav-brand::before { content: '▶'; font-size: .6rem; }
+    nav a {
+      color: var(--text-dim); text-decoration: none;
+      font-size: .9rem; font-weight: 600; letter-spacing: .05em;
+      padding: .3rem .6rem; border-radius: 4px;
+      transition: all .2s;
+    }
+    nav a:hover, nav a.active { color: var(--accent); background: rgba(0,212,255,.08); }
+
+    /* ─── Layout ─────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 {
+      font-family: var(--sans); font-size: 2rem; font-weight: 700;
+      color: #fff; letter-spacing: .05em;
+    }
+    .page-header .subtitle { color: var(--text-dim); font-size: .95rem; margin-top: .25rem; }
+    .badge {
+      display: inline-block; padding: .2rem .6rem;
+      border-radius: 3px; font-family: var(--mono); font-size: .7rem;
+      letter-spacing: .08em;
+    }
+    .badge-vuln  { background: rgba(255,59,92,.15);  color: var(--red);    border: 1px solid rgba(255,59,92,.3); }
+    .badge-safe  { background: rgba(0,255,136,.12);  color: var(--green);  border: 1px solid rgba(0,255,136,.25); }
+    .badge-info  { background: rgba(0,212,255,.12);  color: var(--accent); border: 1px solid rgba(0,212,255,.25); }
+
+    /* ─── Cards ──────────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card h3 {
+      font-size: 1rem; font-weight: 700;
+      color: var(--accent); letter-spacing: .06em;
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+
+    /* ─── Buttons ────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .6rem 1.4rem; border-radius: 6px;
+      font-family: var(--sans); font-weight: 700; font-size: .9rem;
+      letter-spacing: .06em; cursor: pointer;
+      border: none; transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #000;
+    }
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-danger  { background: rgba(255,59,92,.2); color: var(--red); border: 1px solid rgba(255,59,92,.4); }
+    .btn-danger:hover { background: rgba(255,59,92,.35); }
+    .btn-success { background: rgba(0,255,136,.15); color: var(--green); border: 1px solid rgba(0,255,136,.35); }
+    .btn-ghost   { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,.09); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+    /* ─── Form ───────────────────────────────────────────── */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: .85rem; color: var(--text-dim); margin-bottom: .4rem; letter-spacing: .04em; }
+    input, select {
+      width: 100%;
+      background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px;
+      padding: .6rem .9rem; font-family: var(--sans); font-size: .95rem;
+      outline: none; transition: border-color .2s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+
+    /* ─── Webcam ─────────────────────────────────────────── */
+    .video-wrapper {
+      position: relative; border-radius: 8px; overflow: hidden;
+      border: 2px solid var(--border); background: #000;
+    }
+    .video-wrapper video, .video-wrapper canvas {
+      width: 100%; display: block;
+    }
+    .video-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+    .video-status {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,.75);
+      font-family: var(--mono); font-size: .75rem;
+      padding: .4rem .7rem; color: var(--accent);
+    }
+
+    /* ─── Steps ──────────────────────────────────────────── */
+    .steps { list-style: none; }
+    .step-item {
+      display: flex; align-items: flex-start; gap: .8rem;
+      padding: .6rem 0; border-bottom: 1px solid rgba(30,58,95,.5);
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--bg3); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: .7rem; flex-shrink: 0;
+    }
+    .step-item.ok    .step-num { background: rgba(0,255,136,.15); border-color: var(--green); color: var(--green); }
+    .step-item.skip  .step-num { background: rgba(255,215,0,.12); border-color: var(--yellow); color: var(--yellow); }
+    .step-item.fail  .step-num { background: rgba(255,59,92,.15); border-color: var(--red); color: var(--red); }
+    .step-name { font-weight: 700; font-size: .9rem; }
+    .step-detail { font-size: .8rem; color: var(--text-dim); margin-top: .1rem; font-family: var(--mono); }
+
+    /* ─── Alert boxes ────────────────────────────────────── */
+    .alert {
+      padding: 1rem 1.25rem; border-radius: 8px;
+      font-size: .95rem; display: none;
+    }
+    .alert.show { display: block; }
+    .alert-success { background: rgba(0,255,136,.1); border: 1px solid rgba(0,255,136,.3); color: var(--green); }
+    .alert-danger  { background: rgba(255,59,92,.1);  border: 1px solid rgba(255,59,92,.3); color: var(--red); }
+    .alert-info    { background: rgba(0,212,255,.08); border: 1px solid rgba(0,212,255,.25); color: var(--accent); }
+    .alert-warn    { background: rgba(255,215,0,.08); border: 1px solid rgba(255,215,0,.25); color: var(--yellow); }
+
+    /* ─── EAR bar ─────────────────────────────────────────── */
+    .ear-bar-wrap { background: var(--bg3); border-radius: 4px; height: 8px; overflow: hidden; }
+    .ear-bar      { height: 100%; transition: width .1s, background .1s; border-radius: 4px; }
+
+    /* ─── Grid ───────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ─── Log console ────────────────────────────────────── */
+    .console {
+      background: #000; border: 1px solid var(--border);
+      border-radius: 6px; padding: 1rem;
+      font-family: var(--mono); font-size: .78rem;
+      max-height: 200px; overflow-y: auto;
+      color: var(--text-dim);
+    }
+    .console .log-ok   { color: var(--green); }
+    .console .log-err  { color: var(--red); }
+    .console .log-warn { color: var(--yellow); }
+    .console .log-info { color: var(--accent); }
+
+    /* ─── Similarity meter ───────────────────────────────── */
+    .similarity-meter {
+      text-align: center; padding: 1.5rem;
+      border-radius: 8px; background: var(--bg3);
+    }
+    .similarity-value {
+      font-family: var(--mono); font-size: 3rem;
+      font-weight: bold;
+    }
+    .similarity-label { font-size: .8rem; color: var(--text-dim); margin-top: .25rem; }
+  </style>
+  {% block extra_style %}{% endblock %}
+</head>
+<body>
+  <nav>
+    <span class="nav-brand">FACE AUTH DEMO</span>
+    <a href="/">🏠 Trang chủ</a>
+    <a href="/register">📷 Đăng ký</a>
+    <a href="/login/vulnerable">⚠️ Vulnerable</a>
+    <a href="/login/secure">🛡️ Secure</a>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <script>
+    // ── Tiện ích chung ────────────────────────────────────────────────────────
+    async function apiPost(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return res.json();
+    }
+
+    function captureFrame(video) {
+      const canvas = document.createElement('canvas');
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+
+    async function startCamera(videoEl) {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+      videoEl.srcObject = stream;
+      await new Promise(r => videoEl.onloadedmetadata = r);
+      videoEl.play();
+      return stream;
+    }
+
+    function renderSteps(steps, container) {
+      container.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.className = 'steps';
+      steps.forEach(s => {
+        const li = document.createElement('li');
+        li.className = `step-item ${s.status}`;
+        const icon = s.status === 'ok' ? '✓' : s.status === 'fail' ? '✗' : '~';
+        li.innerHTML = `
+          <div class="step-num">${icon}</div>
+          <div>
+            <div class="step-name">Bước ${s.step}: ${s.name}</div>
+            ${s.detail ? `<div class="step-detail">${s.detail}</div>` : ''}
+          </div>`;
+        ul.appendChild(li);
+      });
+      container.appendChild(ul);
+    }
+
+    function log(consoleEl, msg, type = 'info') {
+      const ts = new Date().toLocaleTimeString('vi');
+      const line = document.createElement('div');
+      line.className = `log-${type}`;
+      line.textContent = `[${ts}] ${msg}`;
+      consoleEl.appendChild(line);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+  </script>
+  {% block extra_script %}{% endblock %}
+</body>
+</html>

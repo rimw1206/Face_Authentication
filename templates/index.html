@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Face Auth Demo — Trang chủ{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header" style="text-align:center; padding: 3rem 0 2rem;">
+    <div style="font-family: var(--mono); color: var(--accent); font-size:.85rem; letter-spacing:.15em; margin-bottom:.75rem;">
+      UIS — NHÓM 10 — LỚP 01
+    </div>
+    <h1 style="font-size:2.8rem; background: linear-gradient(135deg,#fff,var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">
+      Biometric Authentication
+    </h1>
+    <p class="subtitle" style="font-size:1.05rem; margin-top:.5rem;">
+      Demo tấn công Spoofing và phòng chống bằng Liveness Detection
+    </p>
+    <div style="margin-top:1rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap;">
+      <span class="badge badge-info">Face Recognition</span>
+      <span class="badge badge-vuln">Spoofing Attack</span>
+      <span class="badge badge-safe">Liveness Detection</span>
+      <span class="badge badge-info">EAR Algorithm</span>
+    </div>
+  </div>
+
+  <!-- Luồng demo -->
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem; margin-bottom:2rem;">
+    <a href="/register" style="text-decoration:none;">
+      <div class="card" style="text-align:center; cursor:pointer; transition:border-color .2s;" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor=''">
+        <div style="font-size:2.5rem; margin-bottom:.75rem;">📷</div>
+        <div style="font-weight:700; font-size:1.1rem; color:#fff; margin-bottom:.4rem;">Bước 1: Đăng ký</div>
+        <div style="font-size:.85rem; color:var(--text-dim);">Chụp khuôn mặt và đăng ký vào hệ thống. Embedding 128 chiều sẽ được lưu vào database.</div>
+        <div style="margin-top:1rem;"><span class="badge badge-info">Bắt đầu tại đây</span></div>
+      </div>
+    </a>
+
+    <a href="/login/vulnerable" style="text-decoration:none;">
+      <div class="card" style="text-align:center; cursor:pointer; transition:border-color .2s;" onmouseenter="this.style.borderColor='var(--red)'" onmouseleave="this.style.borderColor=''">
+        <div style="font-size:2.5rem; margin-bottom:.75rem;">🎭</div>
+        <div style="font-weight:700; font-size:1.1rem; color:#fff; margin-bottom:.4rem;">Bước 2: Tấn công Spoofing</div>
+        <div style="font-size:.85rem; color:var(--text-dim);">Thử dùng ảnh chụp / màn hình điện thoại để đăng nhập. Hệ thống lỗ hổng sẽ bị vượt qua.</div>
+        <div style="margin-top:1rem;"><span class="badge badge-vuln">Hệ thống lỗ hổng</span></div>
+      </div>
+    </a>
+
+    <a href="/login/secure" style="text-decoration:none;">
+      <div class="card" style="text-align:center; cursor:pointer; transition:border-color .2s;" onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor=''">
+        <div style="font-size:2.5rem; margin-bottom:.75rem;">🛡️</div>
+        <div style="font-weight:700; font-size:1.1rem; color:#fff; margin-bottom:.4rem;">Bước 3: Liveness Detection</div>
+        <div style="font-size:.85rem; color:var(--text-dim);">Cùng ảnh đó bị từ chối. Hệ thống phát hiện không có chớp mắt thật thông qua thuật toán EAR.</div>
+        <div style="margin-top:1rem;"><span class="badge badge-safe">Hệ thống bảo mật</span></div>
+      </div>
+    </a>
+  </div>
+
+  <div class="grid-2">
+    <!-- Người dùng đã đăng ký -->
+    <div class="card">
+      <h3>👤 Người dùng đã đăng ký</h3>
+      <div id="user-list">
+        {% if users %}
+          {% for u in users %}
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:.5rem 0; border-bottom:1px solid rgba(30,58,95,.4);">
+            <span style="font-family:var(--mono); color:#fff;">{{ u }}</span>
+            <span class="badge badge-safe">Đã đăng ký</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="color:var(--text-dim); font-size:.9rem; padding:.5rem 0;">
+            Chưa có người dùng nào. Hãy <a href="/register" style="color:var(--accent);">đăng ký</a> trước.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Giải thích kỹ thuật -->
+    <div class="card">
+      <h3>⚙️ Cơ chế kỹ thuật</h3>
+      <div style="font-size:.88rem; line-height:1.7; color:var(--text-dim);">
+        <p style="margin-bottom:.6rem;">
+          <strong style="color:var(--accent);">Face Embedding:</strong>
+          CNN (dựa trên FaceNet) chuyển khuôn mặt thành vector 128 chiều. Hai khuôn mặt cùng người có khoảng cách Euclidean &lt; 0.50.
+        </p>
+        <p style="margin-bottom:.6rem;">
+          <strong style="color:var(--red);">Spoofing Attack:</strong>
+          Ảnh in hoặc màn hình điện thoại tạo ra embedding gần giống người thật → hệ thống không có liveness sẽ bị vượt qua.
+        </p>
+        <p>
+          <strong style="color:var(--green);">EAR (Eye Aspect Ratio):</strong>
+          Đo tỉ lệ chiều cao / chiều rộng vùng mắt theo 6 landmark điểm. Blink được phát hiện khi EAR &lt; 0.25 trong ≥ 2 frame liên tiếp rồi tăng trở lại.
+        </p>
+      </div>
+      <div style="margin-top:1rem; background:var(--bg3); border-radius:6px; padding:.75rem; font-family:var(--mono); font-size:.78rem; color:var(--accent);">
+        EAR = (||p2-p6|| + ||p3-p5||) / (2 × ||p1-p4||)
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
