@@ -9,7 +9,7 @@ from scipy.spatial import distance as dist
 # ─── Hằng số cấu hình ─────────────────────────────────────────────────────────
 EAR_THRESHOLD    = 0.22   # Ngưỡng EAR thực tế (thường từ 0.20 - 0.26)
 EAR_CONSEC_FRAMES = 1     # Số frame liên tiếp
-FACE_MATCH_THRESHOLD = 0.50
+FACE_MATCH_THRESHOLD = 0.70   # Ngưỡng so sánh Cosine Similarity cho Facenet512
 
 # Khởi tạo MediaPipe Face Landmarker (API mới cho Python 3.13)
 from mediapipe.tasks import python
@@ -61,14 +61,14 @@ def encode_image_to_base64(img_bgr: np.ndarray) -> str:
 
 def extract_embedding(img_bgr: np.ndarray):
     """
-    Trích xuất embedding sử dụng VGG-Face và RetinaFace (Mạnh nhất).
+    Trích xuất embedding sử dụng Facenet512 và RetinaFace (Mạnh nhất).
     """
     try:
-        # Chuyển sang VGG-Face: Phân biệt người lạ cực tốt
+        # Chuyển sang Facenet512: Phân biệt người lạ cực tốt, tốc độ và độ chính xác tối ưu
         # Sử dụng detector_backend="retinaface" để cắt mặt chính xác 100%
         res = DeepFace.represent(
             img_bgr, 
-            model_name="VGG-Face", 
+            model_name="Facenet512", 
             detector_backend="retinaface",
             enforce_detection=False
         )
@@ -82,30 +82,25 @@ def extract_embedding(img_bgr: np.ndarray):
 
 def compare_embeddings(stored_emb: np.ndarray, input_emb: np.ndarray):
     """
-    So sánh sử dụng Cosine Similarity với model VGG-Face.
+    So sánh sử dụng Cosine Similarity với model Facenet512.
     """
     a = stored_emb / np.linalg.norm(stored_emb)
     b = input_emb / np.linalg.norm(input_emb)
     cosine_sim = np.dot(a, b)
     
-    print(f">>> [DEBUG] Cosine Similarity (VGG-Face): {cosine_sim:.4f}")
+    print(f">>> [DEBUG] Cosine Similarity (Facenet512): {cosine_sim:.4f}")
     
-    # Với VGG-Face + Cosine:
-    # - Cùng 1 người: Thường > 0.35
-    # - Người khác: Thường < 0.25
-    # (Lưu ý: VGG-Face có dải số khác với Facenet)
+    # Với Facenet512 + Cosine:
+    # - Cùng 1 người: Thường > 0.70
+    # - Người khác: Thường < 0.50
     
-    threshold = 0.35
-    is_match = cosine_sim > threshold
+    is_match = cosine_sim > FACE_MATCH_THRESHOLD
     
-    # Chuẩn hóa Similarity ra % để hiển thị cho đẹp
-    # 0.35 (ngưỡng) sẽ tương ứng với khoảng 70%
-    if cosine_sim > threshold:
-        display_sim = 0.7 + (cosine_sim - threshold) * 0.4 
-    else:
-        display_sim = (cosine_sim / threshold) * 0.7
+    # Điểm cosine_sim của Facenet512 đã khá chuẩn trên thang 1.0
+    # Ta chỉ cần giới hạn nó trong khoảng [0, 1] để giao diện hiển thị hợp lý
+    display_sim = float(max(0.0, min(1.0, cosine_sim)))
         
-    return float(min(1.0, display_sim)), bool(is_match)
+    return display_sim, bool(is_match)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
