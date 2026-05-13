@@ -185,7 +185,7 @@ def api_login_vulnerable():
     steps = [
         {"step": 1, "name": "Thu nhận hình ảnh",           "status": "ok", "detail": "Frame nhận được từ camera"},
         {"step": 2, "name": "Phát hiện khuôn mặt",         "status": "ok", "detail": "Khuôn mặt được phát hiện thành công"},
-        {"step": 3, "name": "Trích xuất Face Embedding",   "status": "ok", "detail": "CNN đã tạo vector 128 chiều"},
+        {"step": 3, "name": "Trích xuất Face Embedding",   "status": "ok", "detail": "CNN đã tạo vector 512 chiều (Facenet512)"},
         {"step": 4, "name": "Kiểm tra Liveness",           "status": "skip", "detail": "⚠️  BƯỚC NÀY BỊ BỎ QUA — Đây là lỗ hổng!"},
         {"step": 5, "name": "So sánh Embedding",           "status": "ok" if is_match else "fail",
          "detail": f"Cosine similarity = {similarity:.4f} | Threshold = {1 - face_utils.FACE_MATCH_THRESHOLD:.2f}"},
@@ -320,7 +320,7 @@ def api_login_secure():
     steps = [
         {"step": 1, "name": "Thu nhận hình ảnh",         "status": "ok", "detail": "Frame webcam nhận được"},
         {"step": 2, "name": "Phát hiện khuôn mặt",       "status": "ok", "detail": "Khuôn mặt được xác định"},
-        {"step": 3, "name": "Trích xuất Face Embedding",  "status": "ok", "detail": "CNN tạo vector 128 chiều"},
+        {"step": 3, "name": "Trích xuất Face Embedding",  "status": "ok", "detail": "CNN tạo vector 512 chiều (Facenet512)"},
         {"step": 4, "name": "Kiểm tra Liveness (EAR)",   "status": "ok",
          "detail": f"✅ Phát hiện {state['blink_count']} lần chớp mắt — Người thật xác nhận!"},
         {"step": 5, "name": "So sánh Embedding",
