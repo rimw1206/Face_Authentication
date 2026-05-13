@@ -109,7 +109,7 @@ def compare_embeddings(stored_emb: np.ndarray, input_emb: np.ndarray):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PHẦN 3: LIVENESS DETECTION - EAR (Eye Aspect Ratio) (MOCK bằng Cascade)
+#  PHẦN 3: LIVENESS DETECTION - EAR (Eye Aspect Ratio) (REAL bằng MediaPipe)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def calculate_ear(eye_landmarks, landmarks, img_w, img_h):
